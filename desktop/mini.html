@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>AI协同台 · 进度</title>
+<style>
+:root{--bg:#0b0d10;--panel:#111419;--line:#1f242c;--ink:#e6e8eb;--mute:#8a919c;--dim:#5b626d;--g:#22c55e;--b:#3b82f6;--r:#ef4444;--o:#f08a24;--mono:"JetBrains Mono",Consolas,ui-monospace,monospace}
+*{box-sizing:border-box;margin:0}
+html,body{height:100%;background:var(--bg);color:var(--ink);font:12px/1.45 "Segoe UI","Microsoft YaHei",system-ui,sans-serif;overflow:hidden;user-select:none}
+body{-webkit-app-region:drag;border:1px solid var(--line);border-radius:10px;display:grid;grid-template-columns:96px minmax(0,1fr);gap:12px;padding:10px 12px;position:relative;align-items:center}
+.ring{position:relative;width:96px;height:96px;align-self:center}
+.ring svg{width:100%;height:100%;transform:rotate(-90deg)}
+.ring .bg{fill:none;stroke:#1f242b;stroke-width:9}
+.ring .fg{fill:none;stroke:var(--g);stroke-width:9;stroke-linecap:round;transition:stroke-dashoffset .5s,stroke .3s}
+.ring b{position:absolute;inset:0;display:grid;place-items:center;font:700 22px/1 var(--mono);color:var(--g)}
+.ring b small{font-size:11px}
+.info{display:flex;flex-direction:column;gap:3px;min-width:0;padding-top:0}
+.head{display:flex;align-items:center;gap:6px;padding-right:46px}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--dim);flex:none}
+.on .dot{background:var(--g);box-shadow:0 0 0 3px rgba(34,197,94,.2);animation:p 1.4s infinite}
+@keyframes p{50%{opacity:.4}}
+.stage{font-weight:600;font-size:13px;white-space:nowrap}
+.goal{color:var(--mute);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.kv{display:flex;justify-content:space-between;gap:8px;color:var(--mute)}
+.kv b{font:500 12px var(--mono);color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.who{color:#93b8ff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-height:17px}
+.bar{height:4px;border-radius:4px;background:#1c2128;overflow:hidden;margin-top:2px}.bar i{display:block;height:100%;width:0;background:var(--o);transition:width .4s}
+.btns{position:absolute;top:8px;right:8px;display:flex;gap:4px;-webkit-app-region:no-drag}
+.btns button{width:20px;height:20px;border:0;border-radius:5px;background:transparent;color:var(--mute);cursor:pointer;display:grid;place-items:center;padding:0}
+.btns button:hover{background:#1b2027;color:var(--ink)}
+.btns svg{width:13px;height:13px}
+.done .ring .fg{stroke:var(--g)}.stop .ring .fg{stroke:var(--r)}.stop .ring b{color:var(--r)}
+</style>
+</head>
+<body>
+<div class="ring"><svg viewBox="0 0 120 120"><circle class="bg" cx="60" cy="60" r="50"/><circle class="fg" id="fg" cx="60" cy="60" r="50" pathLength="100" stroke-dasharray="100" stroke-dashoffset="100"/></svg><b id="pct"><span>0<small>%</small></span></b></div>
+<div class="info">
+  <div class="head"><span class="dot"></span><span class="stage" id="stage">待命</span></div>
+  <div class="goal" id="goal">还没有运行任务</div>
+  <div class="who" id="who"></div>
+  <div class="kv"><span>任务</span><b id="tasks">—</b></div>
+  <div class="kv"><span>Token</span><b id="tok">0</b></div>
+  <div class="bar" id="barWrap" hidden><i id="bar"></i></div>
+  <div class="kv"><span>用时</span><b id="time">—</b></div>
+</div>
+<div class="btns">
+  <button id="open" title="打开主界面"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg></button>
+  <button id="close" title="隐藏（下次最小化再出现）"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+</div>
+<script>
+{
+  const $ = (s) => document.getElementById(s);
+  const fmt = (n) => n >= 1e6 ? (n / 1e6).toFixed(2) + 'M' : n >= 1e4 ? (n / 1e3).toFixed(1) + 'k' : String(Math.round(n || 0));
+  const dur = (ms) => { const s = Math.max(0, Math.round(ms / 1000)); return s < 60 ? s + '秒' : Math.floor(s / 60) + '分' + String(s % 60).padStart(2, '0') + '秒'; };
+  let st = null;
+  function render() {
+    if (!st) return;
+    document.body.className = (st.busy ? 'on ' : '') + (st.stage === 'done' ? 'done' : st.stage === 'stop' ? 'stop' : '');
+    $('fg').style.strokeDashoffset = 100 - Math.min(100, st.pct || 0);
+    $('pct').innerHTML = '<span>' + (st.pct || 0) + '<small>%</small></span>';
+    $('stage').textContent = st.stageName || '待命';
+    $('goal').textContent = st.goal || '还没有运行任务';
+    $('who').textContent = st.running && st.running.length ? '▶ ' + st.running.join('、') : (st.busy ? '主控处理中…' : '');
+    $('tasks').textContent = st.total ? `${st.done} / ${st.total}${st.fail ? ' · 失败 ' + st.fail : ''}` : '—';
+    $('tok').textContent = fmt(st.tokens) + (st.budget ? ' / ' + fmt(st.budget) : '');
+    $('barWrap').hidden = !st.budget;
+    if (st.budget) { const p = Math.min(100, st.tokens / st.budget * 100); $('bar').style.width = p + '%'; $('bar').style.background = p >= 80 ? 'var(--r)' : 'var(--o)'; }
+    $('time').textContent = st.t0 ? dur((st.t1 || Date.now()) - st.t0) : '—';
+  }
+  if (window.aipoolDesktop) {
+    window.aipoolDesktop.onStatus((s) => { st = s; render(); });
+    $('open').onclick = () => window.aipoolDesktop.restore();
+    $('close').onclick = () => window.aipoolDesktop.closeMini();
+  }
+  setInterval(() => { if (st && st.busy) render(); }, 1000);
+}
+</script>
+</body>
+</html>

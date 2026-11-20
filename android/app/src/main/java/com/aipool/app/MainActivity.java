@@ -3,6 +3,7 @@ package com.aipool.app;
 import android.app.Activity;
 import android.content.Intent;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
 import android.webkit.WebResourceRequest;
 import android.webkit.WebResourceResponse;
@@ -56,8 +57,25 @@ public class MainActivity extends Activity {
         // 原生 HTTP 通道：绕过浏览器跨域限制，所有服务商都能直连
         web.addJavascriptInterface(new HttpBridge(this, web), "AndroidHttp");
 
+        if (Build.VERSION.SDK_INT >= 33 && checkSelfPermission("android.permission.POST_NOTIFICATIONS") != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+            requestPermissions(new String[]{"android.permission.POST_NOTIFICATIONS"}, 1);
+        }
+
         if (state != null) web.restoreState(state);
         else web.loadUrl(START);
+    }
+
+    // 退到后台时在通知栏显示进度，回到前台时收起
+    @Override
+    protected void onResume() {
+        super.onResume();
+        StatusNotifier.setForeground(this, true);
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        StatusNotifier.setForeground(this, false);
     }
 
     @Override

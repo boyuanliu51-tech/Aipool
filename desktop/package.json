@@ -1,6 +1,6 @@
 {
   "name": "aipool",
-  "version": "1.2.0",
+  "version": "1.4.0",
   "description": "多 AI 协同台",
   "main": "main.js",
   "author": "AI-POOL",
@@ -17,7 +17,7 @@
     "appId": "com.aipool.app",
     "productName": "AIPool",
     "directories": { "output": "dist" },
-    "files": ["main.js", "web/**/*"],
+    "files": ["main.js", "preload.js", "mini.html", "web/**/*"],
     "win": {
       "icon": "web/icon-512.png",
       "target": [

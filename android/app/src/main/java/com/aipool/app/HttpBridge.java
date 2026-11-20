@@ -48,6 +48,11 @@ public class HttpBridge {
     }
 
     @JavascriptInterface
+    public void status(final String json) {
+        act.runOnUiThread(() -> StatusNotifier.update(act, json));
+    }
+
+    @JavascriptInterface
     public void copy(String text) {
         act.runOnUiThread(() -> {
             ClipboardManager cm = (ClipboardManager) act.getSystemService(Context.CLIPBOARD_SERVICE);
