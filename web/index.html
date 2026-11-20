@@ -1,0 +1,638 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0b0d10">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="AI协同台">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>多 AI 协同台</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+/* VOICE: 运维控制台——克制、密集、可信
+   IDEA: 服务器监控后台：左侧导航、顶部状态条、统计卡、环形仪表、键值清单
+   PICTURE: 四个彩色环形仪表 + 团队拓扑图
+   COLOUR and TYPE: 近黑 #0b0d10 面板 #111419，绿 #22c55e 橙 #f08a24 红 #ef4444 蓝 #3b82f6 青 #14b8a6；Inter + JetBrains Mono 数字
+   LAYOUT: 桌面侧栏 232px；手机底部导航，卡片单列 */
+:root{color-scheme:dark;--bg:#0b0d10;--panel:#111419;--panel2:#161a20;--line:#1f242c;--ink:#e6e8eb;--mute:#8a919c;--dim:#5b626d;--g:#22c55e;--o:#f08a24;--r:#ef4444;--b:#3b82f6;--t:#14b8a6;--mono:"JetBrains Mono",ui-monospace,monospace}
+*{box-sizing:border-box;min-width:0}
+html{background:var(--bg)}
+body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.55 Inter,"PingFang SC","Noto Sans SC","Microsoft YaHei",system-ui,sans-serif;overflow-x:clip}
+.ic{width:16px;height:16px;flex:none}
+.app{display:grid;grid-template-columns:232px minmax(0,1fr);min-height:100vh}
+/* 侧栏 */
+.side{position:sticky;top:0;height:100vh;display:flex;flex-direction:column;border-right:1px solid var(--line);background:#0d1014}
+.brand{display:flex;gap:10px;align-items:center;padding:14px 16px;border-bottom:1px solid var(--line);height:56px}
+.logo{width:30px;height:30px;border-radius:8px;background:var(--g);color:#06210f;display:grid;place-items:center}.logo .ic{width:18px;height:18px}
+.brand b{display:block;font-size:14px;letter-spacing:.02em}.brand small{display:block;font-size:11px;color:var(--mute);margin-top:-2px}
+.nav{padding:10px;flex:1;overflow:auto}
+.grp{display:flex;gap:10px;align-items:center;padding:10px 8px 6px;font-weight:600;font-size:13px}.grp .ic{color:var(--g)}
+.nav a{display:flex;align-items:center;gap:10px;padding:8px 10px 8px 26px;border-radius:6px;color:#c4c9d0;text-decoration:none;font-size:13px;position:relative;min-height:36px}
+.nav a:hover{background:var(--panel2)}
+.nav a.on{color:var(--g);background:rgba(34,197,94,.07)}.nav a.on::before{content:"";position:absolute;left:12px;top:9px;bottom:9px;width:2px;border-radius:2px;background:var(--g)}
+.nav a.on::after{content:"";margin-left:auto;width:6px;height:6px;border-radius:50%;background:var(--o)}
+.foot{padding:12px 14px;border-top:1px solid var(--line);font-size:12px}.foot small{display:block;color:var(--dim);font-family:var(--mono);font-size:11px;margin-top:2px}
+/* 顶栏 */
+.top{position:sticky;top:0;z-index:6;height:56px;display:flex;align-items:center;gap:12px;padding:0 20px;border-bottom:1px solid var(--line);background:rgba(11,13,16,.9);backdrop-filter:blur(8px)}
+.top .mbrand{display:none;align-items:center;gap:8px;font-weight:700}
+.engine{display:inline-flex;align-items:center;gap:8px;padding:5px 10px;border:1px solid var(--line);border-radius:6px;background:var(--panel);font-size:12px;white-space:nowrap}
+.engine::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--dim)}
+.engine em{font-style:normal;color:var(--mute)}.engine.on::before{background:var(--g);box-shadow:0 0 0 3px rgba(34,197,94,.18)}.engine.on em{color:var(--g)}
+.clock{font-family:var(--mono);font-size:12px;color:#c4c9d0;white-space:nowrap}
+.top .sp{flex:1}.top .ck{display:flex;gap:6px;align-items:center;color:var(--mute)}
+.avatar{width:28px;height:28px;border-radius:50%;background:var(--t);color:#04211d;display:grid;place-items:center;font-size:11px;font-weight:700}
+.content{padding:16px 20px 40px;max-width:1480px}
+/* 通用 */
+.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px 16px;display:flex;flex-direction:column}
+.ph{flex-direction:row;align-items:center;gap:12px;padding:12px 16px;margin-bottom:14px;flex-wrap:wrap}
+.ph h1{font-size:17px;margin:0;font-weight:700;flex:1}
+.tile{width:34px;height:34px;border-radius:8px;display:grid;place-items:center;flex:none}.tile .ic{width:18px;height:18px}
+.tile.g{background:rgba(34,197,94,.12);color:var(--g)}.tile.o{background:rgba(240,138,36,.12);color:var(--o)}.tile.r{background:rgba(239,68,68,.12);color:var(--r)}.tile.b{background:rgba(59,130,246,.12);color:var(--b)}.tile.t{background:rgba(20,184,166,.12);color:var(--t)}
+.pill{display:inline-flex;align-items:center;gap:8px;padding:5px 10px;border-radius:6px;background:var(--panel2);font-family:var(--mono);font-size:12px;color:#c4c9d0}.pill::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--g)}
+h2{font-size:14px;margin:0;font-weight:600}
+.ch{display:flex;gap:10px;align-items:center;padding-bottom:12px;margin-bottom:12px;border-bottom:1px solid var(--line)}
+.ch .ic{color:var(--g)}.ch small{display:block;color:var(--mute);font-size:11px;font-weight:400}.ch .r{margin-left:auto}
+button{font:inherit;font-size:13px;font-weight:500;display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:36px;padding:0 14px;border-radius:6px;border:1px solid var(--line);background:var(--panel2);color:var(--ink);cursor:pointer;white-space:nowrap}
+button:hover:not(:disabled){border-color:#2c333d;background:#1b2027}
+button.go{background:var(--g);border-color:var(--g);color:#06210f;font-weight:600}button.go:hover:not(:disabled){background:#2fd56a}
+button.danger{color:var(--r);border-color:rgba(239,68,68,.4);background:transparent}
+button:disabled{opacity:.4;cursor:default}button.sm{min-height:30px;padding:0 10px;font-size:12px}
+button:focus-visible,textarea:focus,input:focus,select:focus{outline:none;border-color:var(--g);box-shadow:0 0 0 3px rgba(34,197,94,.15)}
+textarea,input,select{font:inherit;font-size:16px;color:var(--ink);background:#0d1014;border:1px solid var(--line);border-radius:6px;padding:9px 11px;width:100%}
+select option{background:var(--panel)}
+textarea::placeholder,input::placeholder{color:var(--dim)}
+.hint{font-size:12px;color:var(--mute)}
+.err{color:var(--r);font-size:13px;margin:10px 0 0;padding:8px 12px;border:1px solid rgba(239,68,68,.3);background:rgba(239,68,68,.06);border-radius:6px}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.view[hidden]{display:none}
+/* 工作台 */
+.compose textarea{min-height:96px;resize:vertical;margin-bottom:10px}
+.compose .row{justify-content:flex-end}
+.duo{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:14px;margin-top:14px}
+.topo{position:relative;min-height:250px;flex:1}.topo svg{position:absolute;inset:0;width:100%;height:100%}
+.edge{stroke:#262c35;stroke-width:1.5;fill:none}.edge.on{stroke:var(--b);stroke-dasharray:5 5;animation:flow .7s linear infinite}.edge.ok{stroke:rgba(34,197,94,.45)}
+@keyframes flow{to{stroke-dashoffset:-10}}
+.node circle{fill:var(--panel2);stroke:#2c333d;stroke-width:2}.node text{fill:#c4c9d0;font:12px Inter,"PingFang SC",sans-serif;text-anchor:middle}
+.node.on circle{stroke:var(--b);fill:#122036}.node.on text{fill:#93b8ff}
+.node.ok circle{stroke:var(--g)}.node.bad circle{stroke:var(--r)}
+.node.m circle{stroke:var(--g);fill:#10241a}.node.m text{fill:var(--g);font-weight:600}
+.pulse{fill:none;stroke:var(--g);opacity:0;animation:ping 2s ease-out infinite}@keyframes ping{0%{r:22;opacity:.6}100%{r:44;opacity:0}}
+.big{font:700 40px/1 var(--mono);color:var(--g);letter-spacing:-.02em}.big small{font-size:16px;margin-left:2px}
+.steps{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin:14px 0 4px}
+.st{font-size:12px;color:var(--dim);padding-top:10px;border-top:3px solid #232831;position:relative}
+.st.done{color:var(--mute);border-color:var(--g)}.st.cur{color:var(--b);border-color:var(--b)}
+.st.cur::after{content:"";position:absolute;left:0;top:-3px;height:3px;width:40%;background:#93b8ff;animation:slide 1.2s ease-in-out infinite alternate}
+@keyframes slide{to{left:60%}}
+.lbar{height:6px;border-radius:6px;background:#1c2128;overflow:hidden;margin:12px 0 6px}.lbar i{display:block;height:100%;width:0;background:var(--g);border-radius:6px;transition:width .4s}
+.kv{display:flex;justify-content:space-between;gap:12px;padding:7px 0;font-size:12px;color:var(--mute);border-bottom:1px dashed #1a1f26}.kv:last-child{border:0}
+.kv b{font:500 12px var(--mono);color:var(--ink);text-align:right;overflow-wrap:anywhere}
+/* 任务卡 */
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,340px),1fr));gap:14px;margin-top:14px}
+.task header,.plan header,.final header{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding-bottom:10px;margin-bottom:10px;border-bottom:1px solid var(--line)}
+.who{font-weight:600;font-size:14px}.ttl{color:var(--mute);font-size:12px;flex:1}
+.chip{font:500 11px var(--mono);padding:3px 8px;border-radius:5px;background:var(--panel2);color:var(--mute);white-space:nowrap}
+.chip.run{color:#93b8ff;background:rgba(59,130,246,.12)}.chip.run::before{content:"● ";animation:bl 1s steps(1) infinite}@keyframes bl{50%{opacity:.2}}
+.chip.done{color:var(--g);background:rgba(34,197,94,.1)}.chip.fail{color:var(--r);background:rgba(239,68,68,.1)}
+.body{font-size:13.5px;max-height:320px;overflow:auto;overflow-wrap:anywhere;color:#d3d7dc}.body.big2{max-height:none}
+.body h3,.body h4,.body h5,.body h6{font-size:14px;margin:12px 0 4px;color:var(--ink)}.body p{margin:6px 0}.body ul,.body ol{margin:6px 0;padding-left:20px}.body li::marker{color:var(--g)}
+.body pre{background:#0b0d10;border:1px solid var(--line);border-radius:6px;padding:10px;font-size:12px;overflow-x:auto}.body code{font-family:var(--mono);font-size:.92em;color:#9fe7b7}
+.body table{border-collapse:collapse;font-size:12.5px;margin:8px 0;display:block;overflow-x:auto}.body td,.body th{border:1px solid var(--line);padding:5px 9px;text-align:left}.body th{color:var(--mute);font-weight:500;background:var(--panel2)}
+.deps{font-size:12px;color:var(--mute);margin-top:8px}
+.plan{margin-top:14px;border-left:3px solid var(--g)}
+.final{margin-top:14px;border-color:rgba(34,197,94,.45)}
+.empty{border:1px dashed var(--line);border-radius:10px;padding:30px;text-align:center;color:var(--mute)}
+/* 监控 */
+.stats{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px}
+.stat{flex-direction:row;align-items:center;gap:12px;padding:16px}
+.stat div>span{display:block;font-size:11px;color:var(--mute)}.stat b{display:block;font:700 22px/1.2 var(--mono)}
+.gauges{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-top:12px}
+.gauge{position:relative;width:min(100%,180px);aspect-ratio:1;margin:8px auto 18px}
+.gauge svg{width:100%;height:100%;transform:rotate(-90deg)}.gauge .bgc{fill:none;stroke:#1f242b;stroke-width:9}
+.gauge .fg{fill:none;stroke-width:9;stroke-linecap:round;transition:stroke-dashoffset .6s}
+.gv{position:absolute;inset:0;display:grid;place-items:center;font:700 34px/1 var(--mono);letter-spacing:-.03em;text-align:center}.gv small{font-size:14px;margin-left:1px}
+.gauge.g .fg{stroke:var(--g)}.gauge.g .gv{color:var(--g)}.gauge.o .fg{stroke:var(--o)}.gauge.o .gv{color:var(--o)}
+.gauge.r .fg{stroke:var(--r)}.gauge.r .gv{color:var(--r)}.gauge.b .fg{stroke:var(--b)}.gauge.b .gv{color:var(--b)}
+.gcap{position:absolute;left:0;right:0;top:62%;text-align:center;font-size:11px;color:var(--mute)}
+.kvs{border-top:1px solid var(--line);padding-top:6px;margin-top:auto}
+.set{display:flex;flex-wrap:wrap;gap:12px;align-items:center}.set label{display:flex;gap:8px;align-items:center;font-size:13px;color:var(--mute);white-space:nowrap}
+.set input{width:9.5em}.set select{width:auto}.set input[type=checkbox]{width:18px;height:18px;accent-color:var(--g)}
+.ub{padding:8px 0;border-bottom:1px dashed #1a1f26}.ub:last-child{border:0}
+.ub-h{display:flex;gap:8px;align-items:baseline}.ub-h span{color:var(--dim);font:11px var(--mono);flex:1}.ub-h em{font:500 13px var(--mono);font-style:normal}
+.ub-bar{display:flex;height:6px;margin:7px 0 5px;border-radius:4px;overflow:hidden;min-width:4px}.ub-bar i:first-child{background:var(--t)}.ub-bar i:last-child{background:var(--g)}
+.ub-f{font-size:11px;color:var(--mute)}
+.legend{display:flex;gap:12px;font-size:11px;color:var(--mute)}.legend span::before{content:"";display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:5px;background:var(--t)}.legend span+span::before{background:var(--g)}
+.logl{max-height:420px;overflow:auto}
+.lg{display:grid;grid-template-columns:auto minmax(0,1fr);gap:10px;padding:6px 0;font-size:12.5px;border-bottom:1px dashed #1a1f26}.lg span{font:11px var(--mono);color:var(--dim);padding-top:2px}.lg p{margin:0}
+.none{color:var(--dim);text-align:center;padding:40px 0;font-size:13px}
+.note{font-size:12px;color:var(--mute);margin:10px 0 0;max-width:80ch}
+/* 团队/模型 */
+.team{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,300px),1fr));gap:12px}
+.agent,.prov{display:grid;gap:8px}.agent.master{border-color:rgba(34,197,94,.4)}
+.agent textarea{min-height:84px;font-size:14px}.prov .row input{flex:1}
+.agent .chip.run::before{content:""}
+/* 底部导航（手机） */
+.bnav{display:none}
+@media(max-width:1180px){.stats{grid-template-columns:repeat(3,minmax(0,1fr))}.gauges{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:900px){
+ .app{grid-template-columns:1fr}.side{display:none}
+ .top{padding:0 14px;padding-top:env(safe-area-inset-top);height:calc(52px + env(safe-area-inset-top))}.top .mbrand{display:flex}.top .ck,.avatar{display:none}
+ .content{padding:12px 12px calc(84px + env(safe-area-inset-bottom))}
+ .duo{grid-template-columns:1fr}
+ .bnav{display:flex;position:fixed;left:0;right:0;bottom:0;z-index:8;background:rgba(13,16,20,.96);border-top:1px solid var(--line);padding:6px 6px calc(6px + env(safe-area-inset-bottom));backdrop-filter:blur(8px)}
+ .bnav a{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:6px 0;color:var(--mute);text-decoration:none;font-size:11px;min-height:48px}
+ .bnav a .ic{width:20px;height:20px}.bnav a.on{color:var(--g)}
+}
+@media(max-width:600px){.stats{grid-template-columns:repeat(2,minmax(0,1fr))}.stats .stat:last-child{grid-column:1/-1}.gauges{grid-template-columns:1fr 1fr;gap:10px}.gauges .card{padding:12px}.gv{font-size:24px}.gv small{font-size:11px}.ch small{display:none}.big{font-size:32px}.ph .pill{display:none}}
+@media(max-width:380px){.gauges{grid-template-columns:1fr}}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<div class="app">
+<aside class="side">
+  <div class="brand"><span class="logo"><i data-i="bot"></i></span><div><b>AI-POOL</b><small>多 AI 协同调度</small></div></div>
+  <nav class="nav">
+    <div class="grp"><i data-i="zap"></i>协同调度</div>
+    <a href="#work" data-v="work"><i data-i="grid"></i>协同工作台</a>
+    <a href="#mon" data-v="mon"><i data-i="activity"></i>系统监控</a>
+    <div class="grp"><i data-i="sliders"></i>配置管理</div>
+    <a href="#team" data-v="team"><i data-i="users"></i>团队管理</a>
+    <a href="#models" data-v="models"><i data-i="key"></i>模型与密钥</a>
+  </nav>
+  <div class="foot"><span class="engine"><span>协同引擎</span><em>空闲</em></span><small id="plat">v1.2.0 · 本地存储</small></div>
+</aside>
+
+<main>
+<header class="top">
+  <span class="mbrand"><span class="logo"><i data-i="bot"></i></span>AI-POOL</span>
+  <span class="engine"><span>协同引擎</span><em>空闲</em></span>
+  <span class="sp"></span>
+  <span class="ck"><i data-i="clock"></i><span class="clock"></span></span>
+  <span class="avatar">AI</span>
+</header>
+
+<div class="content">
+<!-- 工作台 -->
+<div class="view" id="v-work">
+  <div class="card ph"><span class="tile g"><i data-i="grid"></i></span><h1>协同工作台</h1><span class="pill clock"></span></div>
+  <form class="card compose" id="form">
+    <div class="ch"><i data-i="term"></i><div><h2>总目标</h2><small>主控 AI 会拆解任务、分派给子 AI 并行执行，审核后汇总</small></div></div>
+    <textarea id="goal" placeholder="例如：为一款放置类修仙手游设计首周留存活动方案，包含玩法、数值和推广文案"></textarea>
+    <div class="row"><button type="button" class="danger" id="stop" disabled><i data-i="stop"></i>停止</button><button type="submit" class="go" id="run"><i data-i="play"></i>开始协同</button></div>
+  </form>
+  <div class="err" id="err" hidden></div>
+  <div class="duo">
+    <div class="card"><div class="ch"><i data-i="net"></i><div><h2>团队拓扑</h2><small>蓝色为正在工作的 AI</small></div></div><div class="topo"><svg id="topo"></svg></div></div>
+    <div class="card"><div class="ch"><i data-i="activity"></i><div><h2>运行状态</h2><small id="wStage">待命</small></div></div>
+      <div class="big" id="wPct">0%</div>
+      <div class="lbar"><i id="wBar"></i></div>
+      <div class="steps"><div class="st">规划</div><div class="st">执行</div><div class="st">审核</div><div class="st">汇总</div></div>
+      <div id="readout" style="margin-top:8px"></div>
+    </div>
+  </div>
+  <div id="planBox"></div>
+  <div class="grid" id="tasks"><div class="empty" style="grid-column:1/-1">还没有任务。先到「模型与密钥」填好 API Key，再输入目标点「开始协同」。</div></div>
+  <div id="finalBox"></div>
+</div>
+
+<!-- 监控 -->
+<div class="view" id="v-mon" hidden>
+  <div class="card ph"><span class="tile g"><i data-i="activity"></i></span><h1>系统监控</h1><span class="pill clock"></span><button id="refresh"><i data-i="refresh"></i>刷新</button></div>
+  <div class="stats">
+    <div class="card stat"><span class="tile t"><i data-i="list"></i></span><div><span>总任务数</span><b id="sTasks">0</b></div></div>
+    <div class="card stat"><span class="tile g"><i data-i="check"></i></span><div><span>已完成</span><b id="sDone">0</b></div></div>
+    <div class="card stat"><span class="tile b"><i data-i="refresh"></i></span><div><span>进行中</span><b id="sRun">0</b></div></div>
+    <div class="card stat"><span class="tile r"><i data-i="x"></i></span><div><span>失败</span><b id="sFail">0</b></div></div>
+    <div class="card stat"><span class="tile o"><i data-i="db"></i></span><div><span>本次 Token</span><b id="sTok">0</b></div></div>
+  </div>
+  <div class="gauges">
+    <div class="card"><div class="ch"><i data-i="cpu"></i><div><h2>工作进度</h2><small>当前运行</small></div></div>
+      <div class="gauge g" id="gProg"><svg viewBox="0 0 120 120"><circle class="bgc" cx="60" cy="60" r="50"/><circle class="fg" cx="60" cy="60" r="50" pathLength="100" stroke-dasharray="100" stroke-dashoffset="100"/></svg><div class="gv"></div></div>
+      <div class="kvs" id="kProg"></div></div>
+    <div class="card"><div class="ch"><i data-i="db" style="color:var(--o)"></i><div><h2>本次 Token</h2><small id="gRunSub">未设预算</small></div></div>
+      <div class="gauge o" id="gRun"><svg viewBox="0 0 120 120"><circle class="bgc" cx="60" cy="60" r="50"/><circle class="fg" cx="60" cy="60" r="50" pathLength="100" stroke-dasharray="100" stroke-dashoffset="100"/></svg><div class="gv"></div></div>
+      <div class="kvs" id="kRun"></div></div>
+    <div class="card"><div class="ch"><i data-i="hdd" style="color:var(--r)"></i><div><h2>累计额度</h2><small id="gAllSub">未设总额度</small></div></div>
+      <div class="gauge r" id="gAll"><svg viewBox="0 0 120 120"><circle class="bgc" cx="60" cy="60" r="50"/><circle class="fg" cx="60" cy="60" r="50" pathLength="100" stroke-dasharray="100" stroke-dashoffset="100"/></svg><div class="gv"></div></div>
+      <div class="kvs" id="kAll"></div></div>
+    <div class="card"><div class="ch"><i data-i="server"></i><div><h2>团队信息</h2><small>工作中的 AI</small></div></div>
+      <div class="gauge g" id="gTeam"><svg viewBox="0 0 120 120"><circle class="bgc" cx="60" cy="60" r="50"/><circle class="fg" cx="60" cy="60" r="50" pathLength="100" stroke-dasharray="100" stroke-dashoffset="100"/></svg><div class="gv"></div><div class="gcap">在线工作</div></div>
+      <div class="kvs" id="kTeam"></div></div>
+  </div>
+  <div class="card" style="margin-top:12px"><div class="set">
+    <label>每次运行预算 <input id="budget" inputmode="numeric" placeholder="0 = 不限"></label>
+    <label>总额度 <input id="quota" inputmode="numeric" placeholder="0 = 不限"></label>
+    <button class="sm" id="resetUse">清零累计</button></div>
+    <p class="note">用量以服务商返回的实际计数为准，不返回时按字数估算（标 *）。达到预算自动停止，并行中的调用可能略超。在「模型与密钥」填单价可显示费用。</p></div>
+  <div class="duo">
+    <div class="card"><div class="ch"><i data-i="chart"></i><div><h2>各 AI 用量 · 本次运行</h2><small>按 Token 合计排序</small></div><div class="legend r"><span>输入</span><span>输出</span></div></div><div id="mBy"></div></div>
+    <div class="card"><div class="ch"><i data-i="radio"></i><div><h2>实时活动</h2></div></div><div class="logl" id="mLog"></div></div>
+  </div>
+</div>
+
+<!-- 团队 -->
+<div class="view" id="v-team" hidden>
+  <div class="card ph"><span class="tile t"><i data-i="users"></i></span><h1>团队管理</h1></div>
+  <div class="card" style="margin-bottom:12px"><div class="set">
+    <label>预设 <select id="preset"><option value="">选择…</option><option value="dev">软件开发</option><option value="game">游戏策划</option><option value="write">内容创作</option><option value="research">调研分析</option></select></label>
+    <label>最大并行 <select id="par"><option>1</option><option>2</option><option>3</option><option>4</option><option>6</option></select></label>
+    <label><input type="checkbox" id="review"> 主控审核并返工一轮</label>
+    <button class="sm" id="add"><i data-i="plus"></i>添加子 AI</button></div>
+    <p class="note">每个 AI 可选不同服务商和模型；模型名留空则用服务商默认模型。</p></div>
+  <div class="team" id="team"></div>
+</div>
+
+<!-- 模型 -->
+<div class="view" id="v-models" hidden>
+  <div class="card ph"><span class="tile o"><i data-i="key"></i></span><h1>模型与密钥</h1><button id="addProv"><i data-i="plus"></i>添加 OpenAI 兼容服务</button></div>
+  <div class="team" id="provs"></div>
+  <p class="note">密钥只保存在本机浏览器，请求直接发往服务商。「OpenAI 兼容」适用于 OpenAI、DeepSeek、Kimi、通义千问、智谱、OpenRouter 等；若报网络错误，说明该服务不允许浏览器直连，可改用 OpenRouter。</p>
+</div>
+</div>
+</main>
+</div>
+
+<nav class="bnav">
+  <a href="#work" data-v="work"><i data-i="grid"></i>工作台</a>
+  <a href="#mon" data-v="mon"><i data-i="activity"></i>监控</a>
+  <a href="#team" data-v="team"><i data-i="users"></i>团队</a>
+  <a href="#models" data-v="models"><i data-i="key"></i>模型</a>
+</nav>
+<script>const ICONS={activity:'<path d="M22 12h-4l-3 9L9 3l-3 9H2"/>',list:'<path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/>',refresh:'<path d="M21 12a9 9 0 0 1-15 6.7L3 16"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M21 3v5h-5M3 21v-5h5"/>',check:'<circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/>',x:'<circle cx="12" cy="12" r="10"/><path d="m15 9-6 6M9 9l6 6"/>',cpu:'<rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><path d="M15 2v2M15 20v2M2 15h2M2 9h2M20 15h2M20 9h2M9 2v2M9 20v2"/>',users:'<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>',key:'<circle cx="7.5" cy="15.5" r="5.5"/><path d="m21 2-9.6 9.6M15.5 7.5l3 3L22 7l-3-3"/>',zap:'<path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/>',grid:'<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/>',db:'<ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/><path d="M3 12c0 1.66 4 3 9 3s9-1.34 9-3"/>',hdd:'<path d="M22 12H2M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11zM6 16h.01M10 16h.01"/>',server:'<rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><path d="M6 6h.01M6 18h.01"/>',radio:'<circle cx="12" cy="12" r="2"/><path d="M16.24 7.76a6 6 0 0 1 0 8.49m-8.48-.01a6 6 0 0 1 0-8.49m11.31-2.82a10 10 0 0 1 0 14.14m-14.14 0a10 10 0 0 1 0-14.14"/>',chart:'<path d="M3 3v18h18"/><path d="M7 16v-6M12 16V6M17 16v-4"/>',net:'<circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.59 13.51 6.83 3.98M15.41 6.51l-6.82 3.98"/>',term:'<path d="m4 17 6-6-6-6M12 19h8"/>',play:'<polygon points="6 3 20 12 6 21 6 3"/>',stop:'<rect x="6" y="6" width="12" height="12" rx="1"/>',clock:'<circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>',sliders:'<path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/>',bot:'<rect x="3" y="11" width="18" height="10" rx="2"/><circle cx="12" cy="5" r="2"/><path d="M12 7v4M8 16h.01M16 16h.01"/>',plus:'<path d="M12 5v14M5 12h14"/>',copy:'<rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>'};
+const I=n=>`<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[n]||''}</svg>`;
+document.querySelectorAll('i[data-i]').forEach(e=>e.outerHTML=I(e.dataset.i));
+{const tick=()=>{const d=new Date(),z=n=>String(n).padStart(2,'0'),s=`${d.getFullYear()}-${z(d.getMonth()+1)}-${z(d.getDate())} ${z(d.getHours())}:${z(d.getMinutes())}:${z(d.getSeconds())}`;document.querySelectorAll('.clock').forEach(e=>e.textContent=s)};tick();setInterval(tick,1000)}
+
+{
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const P=(name,role)=>({name,role,prov:'anthropic',model:''});
+const PRESETS={
+ dev:[P('架构师','负责系统设计、技术选型、模块划分与接口定义，输出清晰的架构说明。'),P('程序员','负责编写可运行、带注释的代码实现，遵循给定接口。'),P('测试员','负责找出边界情况和缺陷，编写测试用例与测试代码。')],
+ game:[P('系统策划','负责玩法循环、系统规则与功能设计。'),P('数值策划','负责成长曲线、产出消耗、数值表与平衡性计算，用表格呈现。'),P('文案策划','负责世界观、剧情、活动文案与界面文本，风格贴合题材。'),P('运营','负责活动节奏、留存与付费设计、推广方案和数据指标。')],
+ write:[P('研究员','负责收集要点、事实与结构化素材。'),P('写手','负责撰写流畅、有吸引力的正文。'),P('编辑','负责校对、润色、精简并指出问题。')],
+ research:[P('分析师A','从市场与用户角度分析问题。'),P('分析师B','从技术与可行性角度分析问题。'),P('批判者','专门找漏洞、风险与反方观点。')]
+};
+const PROVS=[
+ {id:'anthropic',name:'Claude (Anthropic)',type:'anthropic',base:'https://api.anthropic.com',key:'',model:'claude-sonnet-5-5'},
+ {id:'openai',name:'OpenAI',type:'openai',base:'https://api.openai.com/v1',key:'',model:''},
+ {id:'deepseek',name:'DeepSeek',type:'openai',base:'https://api.deepseek.com/v1',key:'',model:'deepseek-chat'}
+];
+const DEF={master:{name:'主控',role:'你是团队的项目经理兼总编：善于拆解目标、按成员专长分工、严格把关质量，并把各方成果整合成一份连贯完整的交付物。',prov:'anthropic',model:'claude-opus-5-5'},agents:PRESETS.dev,par:3,review:true,provs:PROVS};
+const load=k=>{try{return JSON.parse(localStorage.getItem(k))}catch(e){return null}};
+const save=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}};
+let cfg=Object.assign(structuredClone(DEF),load('aixt.cfg')||{});
+let run=load('aixt.run');
+let stopped=false,ctrls=new Set(),busy=false;
+const saveCfg=()=>save('aixt.cfg',cfg);
+
+/* ---- 视图切换 ---- */
+function show(v){if(!['work','mon','team','models'].includes(v))v='work';document.querySelectorAll('.view').forEach(e=>e.hidden=e.id!=='v-'+v);document.querySelectorAll('a[data-v]').forEach(a=>a.classList.toggle('on',a.dataset.v===v));scrollTo(0,0);if(v==='mon')monitor()}
+addEventListener('hashchange',()=>show(location.hash.slice(1)));
+
+/* ---- 团队 ---- */
+const provOpts=sel=>cfg.provs.map(p=>`<option value="${esc(p.id)}"${p.id===sel?' selected':''}>${esc(p.name)}</option>`).join('');
+function agentHTML(a,i,master){
+  const p=cfg.provs.find(x=>x.id===a.prov);
+  return `<div class="card agent${master?' master':''}" data-i="${i}">
+   <input data-k="name" value="${esc(a.name)}" aria-label="名称">
+   <div class="row"><select data-k="prov" style="flex:1" aria-label="服务商">${provOpts(a.prov)}</select>
+   <input data-k="model" value="${esc(a.model)}" placeholder="${esc(p?.model||'模型名')}" style="flex:1" aria-label="模型"></div>
+   <textarea data-k="role" aria-label="角色设定">${esc(a.role)}</textarea>
+   <div class="row"><span class="chip${master?' run':''}">${master?'主控 AI':'子 AI #'+(i+1)}</span>${master?'':`<button class="sm" data-del="${i}" style="margin-left:auto">删除</button>`}</div></div>`;
+}
+function renderTeam(){
+  setTimeout(()=>typeof topo==='function'&&topo());
+  $('#team').innerHTML=agentHTML(cfg.master,-1,true)+cfg.agents.map((a,i)=>agentHTML(a,i,false)).join('');
+  $('#par').value=cfg.par;$('#review').checked=cfg.review;
+}
+const onTeam=e=>{
+  const k=e.target.dataset.k,c=e.target.closest('.agent');if(!k||!c)return;
+  const i=+c.dataset.i;(i<0?cfg.master:cfg.agents[i])[k]=e.target.value;saveCfg();if(k==='prov')renderTeam();
+};
+$('#team').addEventListener('input',onTeam);$('#team').addEventListener('change',e=>{if(e.target.dataset.k==='prov')onTeam(e)});
+$('#team').addEventListener('click',e=>{
+  const d=e.target.dataset.del;if(d==null)return;
+  if(cfg.agents.length<=1){showErr('至少保留一个子 AI。');return}
+  cfg.agents.splice(+d,1);saveCfg();renderTeam();
+});
+$('#add').onclick=()=>{cfg.agents.push(P('子AI'+(cfg.agents.length+1),'描述它的专长与职责。'));saveCfg();renderTeam()};
+$('#preset').onchange=e=>{const p=PRESETS[e.target.value];if(!p)return;const prov=cfg.agents[0]?.prov||'anthropic';cfg.agents=structuredClone(p).map(a=>({...a,prov}));saveCfg();renderTeam();e.target.value=''};
+$('#par').onchange=e=>{cfg.par=+e.target.value;saveCfg()};
+$('#review').onchange=e=>{cfg.review=e.target.checked;saveCfg()};
+
+/* ---- 服务商 ---- */
+function renderProvs(){
+  $('#provs').innerHTML=cfg.provs.map((p,i)=>`<div class="card prov" data-i="${i}">
+   <div class="row"><input data-k="name" value="${esc(p.name)}" aria-label="名称"><span class="chip">${p.type==='anthropic'?'Anthropic':'OpenAI 兼容'}</span></div>
+   <input data-k="base" value="${esc(p.base)}" placeholder="接口地址" aria-label="接口地址" inputmode="url" autocapitalize="off">
+   <input data-k="key" type="password" value="${esc(p.key)}" placeholder="API Key" aria-label="API Key" autocomplete="off" autocapitalize="off">
+   <input data-k="model" value="${esc(p.model)}" placeholder="默认模型名（必填）" aria-label="默认模型" autocapitalize="off">
+   <div class="row"><input data-k="pin" value="${esc(p.pin||'')}" inputmode="decimal" placeholder="输入单价/百万" aria-label="输入单价"><input data-k="pout" value="${esc(p.pout||'')}" inputmode="decimal" placeholder="输出单价/百万" aria-label="输出单价"></div>
+   <div class="row"><button class="sm" data-test="${i}">测试连接</button>${/deepseek/.test(p.base)?`<button class="sm" data-bal="${i}">查询余额</button>`:''}${i>=PROVS.length?`<button class="sm" data-pdel="${i}">删除</button>`:''}<span class="hint" data-res="${i}" style="margin:0"></span></div></div>`).join('');
+}
+$('#provs').addEventListener('input',e=>{const k=e.target.dataset.k,c=e.target.closest('.prov');if(!k||!c)return;cfg.provs[+c.dataset.i][k]=e.target.value.trim();saveCfg()});
+$('#provs').addEventListener('click',async e=>{
+  const d=e.target.dataset.pdel,t=e.target.dataset.test;
+  if(d!=null){const id=cfg.provs[+d].id;cfg.provs.splice(+d,1);[cfg.master,...cfg.agents].forEach(a=>{if(a.prov===id)a.prov='anthropic'});saveCfg();renderProvs();renderTeam();return}
+  if(t!=null){const p=cfg.provs[+t],r=document.querySelector(`[data-res="${t}"]`);r.textContent='测试中…';r.style.color='';
+    try{const x=await call(p,p.model,'只回复两个字：正常');r.textContent=`✓ ${x.text.trim().slice(0,12)} · ${x.usage.in+x.usage.out} tokens${x.rl?' · 限额剩余 '+fmt(+x.rl):''}`;r.style.color='var(--g)'}catch(err){r.textContent='✗ '+err.message;r.style.color='var(--r)'}}
+  const bq=e.target.dataset.bal;
+  if(bq!=null){const p=cfg.provs[+bq],r=document.querySelector(`[data-res="${bq}"]`);r.textContent='查询中…';
+    try{const res=await hfetch(p.base.replace(/\/v1\/?$/,'').replace(/\/+$/,'')+'/user/balance',{headers:{authorization:'Bearer '+p.key}});const j=await res.json();
+      const b=(j.balance_infos||[]).map(x=>`${x.total_balance} ${x.currency}`).join('，');r.textContent=b?'余额：'+b:'未取到余额';r.style.color=''}
+    catch(err){r.textContent='查询失败（可能不支持浏览器直连）';r.style.color='var(--r)'}}
+});
+$('#addProv').onclick=()=>{cfg.provs.push({id:'c'+Date.now(),name:'自定义服务',type:'openai',base:'https://',key:'',model:''});saveCfg();renderProvs();renderTeam()};
+
+/* ---- 原生 HTTP 通道（安卓 App 内可用，绕过跨域） ---- */
+const NATIVE=window.AndroidHttp||null;
+const nreq={};let nseq=0;
+window.__nh={
+  start(id,status,hdr){const r=nreq[id];if(!r)return;try{r.resolve(new Response(r.stream,{status:status>=200&&status<=599?status:500,headers:JSON.parse(hdr||'{}')}))}catch(e){r.reject(e)}},
+  chunk(id,s){const r=nreq[id];if(r)try{r.ctl.enqueue(new TextEncoder().encode(s))}catch(_){}},
+  end(id,err){const r=nreq[id];if(!r)return;delete nreq[id];if(err){const e=new Error(err);r.reject(e);try{r.ctl.error(e)}catch(_){}}else try{r.ctl.close()}catch(_){}}
+};
+function nfetch(url,o={}){
+  return new Promise((resolve,reject)=>{
+    const id=String(++nseq);let ctl;const stream=new ReadableStream({start(c){ctl=c}});
+    nreq[id]={resolve,reject,stream,ctl};
+    if(o.signal){
+      if(o.signal.aborted){delete nreq[id];return reject(new DOMException('Aborted','AbortError'))}
+      o.signal.addEventListener('abort',()=>{NATIVE.abort(id);const r=nreq[id];if(!r)return;delete nreq[id];const e=new DOMException('Aborted','AbortError');r.reject(e);try{ctl.error(e)}catch(_){}});
+    }
+    NATIVE.request(id,url,o.method||'GET',JSON.stringify(o.headers||{}),typeof o.body==='string'?o.body:'');
+  });
+}
+const hfetch=NATIVE?nfetch:(u,o)=>fetch(u,o);
+function notify(msg){try{if(NATIVE||!('Notification'in window))return;if(Notification.permission==='granted')new Notification('AI协同台',{body:msg});else if(Notification.permission==='default')Notification.requestPermission()}catch(_){}}
+/* ---- 调用模型（流式） ---- */
+async function call(p,model,prompt,onText){
+  if(!p)throw new Error('找不到服务商');
+  if(!p.key)throw new Error(`「${p.name}」还没有填 API Key`);
+  if(!model)throw new Error(`「${p.name}」没有设置模型名`);
+  const c=new AbortController();ctrls.add(c);
+  const base=p.base.replace(/\/+$/,'');
+  let url,headers,body;
+  if(p.type==='anthropic'){
+    url=base+'/v1/messages';
+    headers={'content-type':'application/json','x-api-key':p.key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'};
+    body={model,max_tokens:8192,stream:true,messages:[{role:'user',content:prompt}]};
+  }else{
+    url=base+'/chat/completions';
+    headers={'content-type':'application/json','authorization':'Bearer '+p.key};
+    body={model,stream:true,messages:[{role:'user',content:prompt}]};
+  }
+  if(p.type!=='anthropic')body.stream_options={include_usage:true};
+  try{
+    let res;
+    const go=()=>hfetch(url,{method:'POST',headers,body:JSON.stringify(body),signal:c.signal});
+    try{res=await go();if(res.status===400&&body.stream_options){delete body.stream_options;res=await go()}}
+    catch(e){if(e.name==='AbortError')throw e;throw new Error('网络错误或该服务不允许浏览器直连')}
+    if(!res.ok){let m=res.status+'';try{const j=await res.json();m+=' '+(j.error?.message||j.message||'')}catch(_){}throw new Error(m)}
+    const rl=res.headers.get('anthropic-ratelimit-tokens-remaining')||res.headers.get('x-ratelimit-remaining-tokens');
+    const usage={in:0,out:0};let got=false;
+    const rd=res.body.getReader(),dec=new TextDecoder();let buf='',text='';
+    for(;;){
+      const {done,value}=await rd.read();if(done)break;
+      buf+=dec.decode(value,{stream:true});const lines=buf.split('\n');buf=lines.pop();
+      for(const l of lines){
+        if(!l.startsWith('data:'))continue;const d=l.slice(5).trim();if(!d||d==='[DONE]')continue;
+        let j;try{j=JSON.parse(d)}catch(_){continue}
+        if(j.type==='error'||j.error)throw new Error(j.error?.message||'服务返回错误');
+        if(p.type==='anthropic'){
+          if(j.type==='message_start'&&j.message?.usage){const u=j.message.usage;usage.in=(u.input_tokens||0)+(u.cache_read_input_tokens||0)+(u.cache_creation_input_tokens||0);got=true}
+          if(j.type==='message_delta'&&j.usage){usage.out=j.usage.output_tokens||0;got=true}
+        }else if(j.usage){usage.in=j.usage.prompt_tokens||0;usage.out=j.usage.completion_tokens||0;got=true}
+        const delta=p.type==='anthropic'?(j.type==='content_block_delta'&&j.delta?.text)||'':j.choices?.[0]?.delta?.content||'';
+        if(delta){text+=delta;onText&&onText(text)}
+      }
+    }
+    if(!got){usage.in=estTok(prompt);usage.out=estTok(text)}
+    return {text,usage,est:!got,rl};
+  }finally{ctrls.delete(c)}
+}
+const estTok=s=>Math.ceil((s||'').length/1.6);
+async function ask(agent,prompt,onText,task){
+  const p=cfg.provs.find(x=>x.id===agent.prov);
+  if(cfg.budget>0&&used()>=cfg.budget){overBudget();throw new Error('本次 Token 预算已用完')}
+  if(cfg.quota>0&&(cfg.used||0)>=cfg.quota){overBudget('总额度');throw new Error('Token 总额度已用完')}
+  const r=await call(p,agent.model||p?.model,prompt,onText);
+  track(agent,p,r,task);return r.text;
+}
+
+/* ---- Token 统计 ---- */
+const used=()=>run?.usage?run.usage.in+run.usage.out:0;
+const fmt=n=>n>=1e6?(n/1e6).toFixed(2)+'M':n>=1e4?(n/1e3).toFixed(1)+'k':String(Math.round(n));
+const dur=ms=>{const s=Math.max(0,Math.round(ms/1000));return s<60?s+'秒':Math.floor(s/60)+'分'+String(s%60).padStart(2,'0')+'秒'};
+function track(agent,p,r,task){
+  const u=run.usage,n=r.usage.in+r.usage.out,cost=(r.usage.in*(+p.pin||0)+r.usage.out*(+p.pout||0))/1e6;
+  u.in+=r.usage.in;u.out+=r.usage.out;u.calls++;u.cost+=cost;if(r.est)u.est=true;if(r.rl)u.rl=`${fmt(+r.rl||0)}（${p.name}）`;
+  const b=u.by[agent.name]||(u.by[agent.name]={in:0,out:0,calls:0,cost:0,model:agent.model||p.model});
+  b.in+=r.usage.in;b.out+=r.usage.out;b.calls++;b.cost+=cost;
+  cfg.used=(cfg.used||0)+n;cfg.cost=(cfg.cost||0)+cost;saveCfg();
+  if(task)task.tok=(task.tok||0)+n;
+  log(`${agent.name}：输入 ${fmt(r.usage.in)}，输出 ${fmt(r.usage.out)} tokens${r.est?'（估算）':''}`);
+  if(cfg.budget>0&&used()>=cfg.budget*0.8&&!u.warned){u.warned=true;log('⚠ 本次已用掉 80% 的 Token 预算')}
+  monitor();
+}
+function overBudget(w='本次预算'){if(stopped)return;stopped=true;ctrls.forEach(c=>c.abort());log(`⛔ ${w}已用完，自动停止`);showErr(`Token ${w}已用完，已自动停止。可在「监控」页调高。`)}
+function log(m){if(!run)return;(run.log=run.log||[]).unshift({t:Date.now(),m});run.log.length=Math.min(run.log.length,100);monitor()}
+
+/* ---- Markdown ---- */
+const inl=s=>s.replace(/`([^`]+)`/g,'<code>$1</code>').replace(/\*\*([^*]+)\*\*/g,'<b>$1</b>');
+function md(src){
+  let h='',code=false,list=null,tbl=null;
+  const close=()=>{if(list){h+=`</${list}>`;list=null}if(tbl){h+='<table>'+tbl.map((r,i)=>'<tr>'+r.map(c=>i?`<td>${inl(c)}</td>`:`<th>${inl(c)}</th>`).join('')+'</tr>').join('')+'</table>';tbl=null}};
+  for(const l of esc(src).split('\n')){
+    if(/^\s*```/.test(l)){close();h+=code?'</code></pre>':'<pre><code>';code=!code;continue}
+    if(code){h+=l+'\n';continue}
+    let m;
+    if(/^\s*\|/.test(l)){if(list){h+=`</${list}>`;list=null}if(/^\s*\|?[\s:|-]+\|?\s*$/.test(l))continue;(tbl=tbl||[]).push(l.trim().replace(/^\||\|$/g,'').split('|').map(c=>c.trim()));continue}
+    if(tbl)close();
+    if(m=l.match(/^(#{1,4})\s+(.*)/)){close();const n=m[1].length+2;h+=`<h${n}>${inl(m[2])}</h${n}>`}
+    else if(m=l.match(/^\s*[-*]\s+(.*)/)){if(list!=='ul'){close();h+='<ul>';list='ul'}h+=`<li>${inl(m[1])}</li>`}
+    else if(m=l.match(/^\s*\d+[.)]\s+(.*)/)){if(list!=='ol'){close();h+='<ol>';list='ol'}h+=`<li>${inl(m[1])}</li>`}
+    else if(l.trim()){close();h+=`<p>${inl(l)}</p>`}
+    else close();
+  }
+  if(code)h+='</code></pre>';close();return h;
+}
+
+/* ---- 状态显示 ---- */
+const STNAME={idle:'待命',plan:'规划',exec:'执行',review:'审核',final:'汇总',done:'已完成',stop:'已停止'};
+function stage(s){
+  const idx={plan:0,exec:1,review:2,final:3,done:4}[s];
+  document.querySelectorAll('.steps .st').forEach((e,i)=>{e.classList.toggle('done',idx!=null&&i<idx);e.classList.toggle('cur',idx!=null&&i===idx&&busy)});
+  if(run){if(run.stage!==s&&['exec','review','final','done'].includes(s))log('进入阶段：'+STNAME[s]);run.stage=s}
+  topo();setEngine();readout();
+}
+function setEngine(){document.querySelectorAll('.engine').forEach(e=>{e.classList.toggle('on',busy);e.querySelector('em').textContent=busy?'运行中':'空闲'})}
+function pct(){
+  if(!run)return 0;const s=run.stage,t=run.tasks||[],n=t.length||1,d=t.filter(x=>x.status==='done'||x.status==='fail').length;
+  const v={plan:4,exec:10+60*d/n,review:72,final:86,done:100}[s];
+  if(v!=null)run.pct=Math.round(v);return run.pct||0;
+}
+const kv=rows=>rows.map(([k,v])=>`<div class="kv"><span>${k}</span><b>${v}</b></div>`).join('');
+function readout(){
+  const t=run?.tasks||[],c=k=>t.filter(x=>x.status===k).length,p=pct(),rem=cfg.budget>0?Math.max(0,cfg.budget-used()):null;
+  $('#wPct').textContent=p+'%';$('#wBar').style.width=p+'%';
+  $('#wStage').textContent=run?((busy&&!['stop','done'].includes(run.stage))?STNAME[run.stage]+'中':STNAME[run.stage]||'待命'):'待命';
+  $('#readout').innerHTML=kv([['任务',t.length?`${c('done')} / ${t.length}`:'—'],['进行中',c('run')+c('rev')],['失败',c('fail')],['Token',fmt(used())+(rem!=null?` · 剩余 ${fmt(rem)}`:'')],['用时',run?dur((run.t1||Date.now())-run.t0):'—']]);
+  monitor();
+}
+function gauge(id,v,txt,unit){const g=$('#'+id);g.querySelector('.fg').style.strokeDashoffset=100-Math.min(100,Math.max(0,v));g.querySelector('.gv').innerHTML=`<span>${txt}<small>${unit||''}</small></span>`}
+function monitor(){
+  if($('#v-mon').hidden)return;
+  const u=run?.usage||{in:0,out:0,calls:0,cost:0,by:{}},t=run?.tasks||[],c=k=>t.filter(x=>x.status===k).length,p=pct(),ru=u.in+u.out,all=cfg.used||0;
+  $('#sTasks').textContent=t.length;$('#sDone').textContent=c('done');$('#sRun').textContent=c('run')+c('rev');$('#sFail').textContent=c('fail');$('#sTok').textContent=fmt(ru)+(u.est?'*':'');
+  gauge('gProg',p,p,'%');
+  $('#kProg').innerHTML=kv([['当前阶段',run?STNAME[run.stage]:'—'],['任务完成',t.length?`${c('done')} / ${t.length}`:'—'],['运行用时',run?dur((run.t1||Date.now())-run.t0):'—'],['最大并行',cfg.par]]);
+  const bp=cfg.budget>0?ru/cfg.budget*100:0;
+  gauge('gRun',bp,cfg.budget>0?bp.toFixed(1):fmt(ru),cfg.budget>0?'%':'tok');
+  $('#gRunSub').textContent=cfg.budget>0?`预算 ${fmt(cfg.budget)}`:'未设预算';
+  $('#kRun').innerHTML=kv([['已用',fmt(ru)+(u.est?' *估算':'')],['输入 / 输出',`${fmt(u.in)} / ${fmt(u.out)}`],['剩余',cfg.budget>0?fmt(Math.max(0,cfg.budget-ru)):'不限'],['调用次数',u.calls]]);
+  const ap=cfg.quota>0?all/cfg.quota*100:0;
+  gauge('gAll',ap,cfg.quota>0?ap.toFixed(1):fmt(all),cfg.quota>0?'%':'tok');
+  $('#gAllSub').textContent=cfg.quota>0?`总额度 ${fmt(cfg.quota)}`:'未设总额度';
+  $('#kAll').innerHTML=kv([['累计已用',fmt(all)],['总额度',cfg.quota>0?fmt(cfg.quota):'不限'],['剩余',cfg.quota>0?fmt(Math.max(0,cfg.quota-all)):'—'],['累计费用',cfg.cost?cfg.cost.toFixed(3):'—']]);
+  const on=c('run')+c('rev')+(busy&&['plan','review','final'].includes(run?.stage)?1:0),n=cfg.agents.length+1;
+  gauge('gTeam',on/n*100,on,'');
+  const mp=cfg.provs.find(x=>x.id===cfg.master.prov);
+  $('#kTeam').innerHTML=kv([['主控模型',esc(cfg.master.model||mp?.model||'—')],['子 AI 数',cfg.agents.length],['审核返工',cfg.review?'开启':'关闭'],['限额剩余',u.rl?esc(u.rl):'N/A']]);
+  const rows=Object.entries(u.by).sort((a,b)=>(b[1].in+b[1].out)-(a[1].in+a[1].out)),mx=Math.max(1,...rows.map(([,b])=>b.in+b.out));
+  $('#mBy').innerHTML=rows.length?rows.map(([k,b])=>`<div class="ub"><div class="ub-h"><b>${esc(k)}</b><span>${esc(b.model||'')}</span><em>${fmt(b.in+b.out)}</em></div><div class="ub-bar" style="width:${(b.in+b.out)/mx*100}%"><i style="flex:${b.in}"></i><i style="flex:${b.out}"></i></div><div class="ub-f">${b.calls} 次调用 · 输入 ${fmt(b.in)} · 输出 ${fmt(b.out)}${b.cost?' · 费用 '+b.cost.toFixed(3):''}</div></div>`).join(''):'<div class="none">暂无数据</div>';
+  $('#mLog').innerHTML=(run?.log||[]).map(l=>`<div class="lg"><span>${new Date(l.t).toLocaleTimeString('zh-CN',{hour12:false})}</span><p>${esc(l.m)}</p></div>`).join('')||'<div class="none">暂无活动</div>';
+}
+$('#budget').value=cfg.budget||'';$('#quota').value=cfg.quota||'';
+$('#budget').oninput=e=>{cfg.budget=+e.target.value.replace(/\D/g,'')||0;saveCfg();readout()};
+$('#quota').oninput=e=>{cfg.quota=+e.target.value.replace(/\D/g,'')||0;saveCfg();readout()};
+$('#resetUse').onclick=()=>{cfg.used=0;cfg.cost=0;saveCfg();monitor()};
+$('#refresh').onclick=()=>{readout();topo()};
+setInterval(()=>{if(busy)readout()},1000);
+const CHIP={wait:['等待',''],run:['执行中','run'],rev:['返工中','run'],done:['完成','done'],fail:['失败','fail']};
+function cardHTML(t){
+  const [l,c]=CHIP[t.status]||CHIP.wait;
+  const meta=[t.t0?dur((t.t1||Date.now())-t.t0):'',t.tok?fmt(t.tok)+' tok':''].filter(Boolean).join(' · ');
+  return `<div class="card task" id="c-${esc(t.id)}"><header><span class="who">${esc(t.agent)}</span><span class="ttl">${esc(t.title)}</span><span class="chip ${c}">${l}${meta?' · '+meta:''}</span></header>
+  <div class="body">${t.out?md(t.out):`<p style="color:var(--mute)">${esc(t.instruction)}</p>`}</div>
+  ${t.feedback?`<div class="deps">主控反馈：${esc(t.feedback)}</div>`:''}${t.depends_on.length?`<div class="deps">依赖：${t.depends_on.map(esc).join('、')}</div>`:''}</div>`;
+}
+function renderRun(){
+  if(!run)return;
+  $('#planBox').innerHTML=run.plan?`<div class="card plan"><header><span class="who">${esc(cfg.master.name)}</span><span class="ttl">分工计划</span></header><div class="body big2"><p>${esc(run.plan)}</p></div></div>`:'';
+  $('#tasks').innerHTML=run.tasks?run.tasks.map(cardHTML).join(''):'';
+  renderFinal();stage(run.stage||'idle');
+}
+function updCard(t){const el=document.getElementById('c-'+t.id);if(el)el.outerHTML=cardHTML(t);readout();topo()}
+const rafs={};
+function streamCard(t){if(rafs[t.id])return;rafs[t.id]=requestAnimationFrame(()=>{rafs[t.id]=0;const b=document.querySelector(`#c-${CSS.escape(t.id)} .body`);if(b){b.innerHTML=md(t.out);b.scrollTop=b.scrollHeight}})}
+function renderFinal(){
+  if(!run||!run.final){$('#finalBox').innerHTML='';return}
+  $('#finalBox').innerHTML=`<div class="card final"><header><span class="who">最终交付</span><span class="ttl">${esc(cfg.master.name)} 汇总</span><button class="btn sm" id="copy">${I('copy')}复制全文</button></header><div class="body big2" id="finalBody">${md(run.final)}</div></div>`;
+  $('#copy').onclick=async e=>{try{if(NATIVE)NATIVE.copy(run.final);else await navigator.clipboard.writeText(run.final);$('#copy').textContent='已复制'}catch(_){$('#copy').textContent='复制失败'}};
+}
+function showErr(m){const e=$('#err');e.textContent=m;e.hidden=!m}
+
+/* ---- 协同流程 ---- */
+function parseJSON(s){const a=s.indexOf('{'),b=s.lastIndexOf('}');if(a<0||b<a)throw new Error('主控未返回有效 JSON');return JSON.parse(s.slice(a,b+1))}
+const clip=(s,n=6000)=>s&&s.length>n?s.slice(0,n)+'\n…（已截断）':s||'';
+const teamList=()=>cfg.agents.map(a=>`- ${a.name}：${a.role}`).join('\n');
+const masterHead=()=>`你是主控 AI「${cfg.master.name}」。${cfg.master.role}\n\n团队成员：\n${teamList()}\n\n总目标：${run.goal}\n`;
+
+async function plan(){
+  const txt=await ask(cfg.master,masterHead()+`
+请把总目标拆解成 2–8 个子任务，分配给最合适的成员（成员名必须与上面完全一致）。能并行就并行；只有确实需要别人的产出时才设置依赖。每条指令要具体、写明期望的输出格式。
+只返回 JSON，不要其他文字：
+{"analysis":"一两句话说明分工策略","tasks":[{"id":"t1","agent":"成员名","title":"短标题","instruction":"详细指令","depends_on":[]}]}`);
+  const j=parseJSON(txt),names=cfg.agents.map(a=>a.name);log(`主控给出 ${j.tasks?.length||0} 个子任务`);
+  if(!Array.isArray(j.tasks)||!j.tasks.length)throw new Error('主控没有给出任务');
+  run.plan=j.analysis||'';
+  run.tasks=j.tasks.slice(0,12).map((t,i)=>({id:String(t.id||'t'+(i+1)).replace(/[^\w-]/g,'')||'t'+(i+1),agent:names.includes(t.agent)?t.agent:names[i%names.length],title:t.title||'任务'+(i+1),instruction:t.instruction||'',depends_on:Array.isArray(t.depends_on)?t.depends_on.map(String):[],status:'wait',out:''}));
+}
+async function work(t,extra=''){
+  const a=cfg.agents.find(x=>x.name===t.agent)||cfg.agents[0];
+  const deps=t.depends_on.map(id=>run.tasks.find(x=>x.id===id)).filter(Boolean).map(d=>`### ${d.agent}「${d.title}」的产出\n${clip(d.out,5000)}`).join('\n\n');
+  const p=`你是「${a.name}」。${a.role}\n你在一个由主控 AI 协调的团队中工作。团队总目标：${run.goal}\n\n你的任务：${t.title}\n指令：${t.instruction}\n${deps?'\n可参考的前置成果：\n'+deps+'\n':''}${extra}\n直接输出完成的工作成果（中文，Markdown 格式），不要寒暄，不要复述任务。`;
+  t.out='';t.t0=Date.now();t.t1=0;updCard(t);log(`${a.name} 开始：${t.title}${extra?'（返工）':''}`);
+  try{t.out=await ask(a,p,txt=>{t.out=txt;streamCard(t)},t)}finally{t.t1=Date.now()}
+}
+function execAll(){
+  const ids=new Set(run.tasks.map(t=>t.id)),running=new Set();
+  return new Promise(res=>{
+    const tick=()=>{
+      if(stopped)return res();
+      const left=run.tasks.filter(t=>t.status==='wait');
+      if(!left.length&&!running.size)return res();
+      for(const t of left){
+        if(running.size>=cfg.par)break;
+        if(!t.depends_on.every(d=>!ids.has(d)||['done','fail'].includes(run.tasks.find(x=>x.id===d).status)))continue;
+        t.status='run';running.add(t.id);updCard(t);
+        work(t).then(()=>{t.status='done';log(`✓ ${t.agent} 完成：${t.title}`)},e=>{t.status='fail';t.out=(t.out||'')+'\n\n**出错：**'+(e.message||e);log(`✗ ${t.agent} 失败：${e.message||e}`)}).finally(()=>{running.delete(t.id);updCard(t);save('aixt.run',run);tick()});
+      }
+      if(!running.size&&left.length){left.forEach(t=>t.depends_on=[]);tick()}
+    };tick();
+  });
+}
+async function review(){
+  const done=run.tasks.filter(t=>t.status==='done');if(!done.length)return;
+  const txt=await ask(cfg.master,masterHead()+`\n请严格审核以下子任务产出是否满足指令与总目标，只对确有明显缺陷的标记不通过。\n\n`+done.map(t=>`## [${t.id}] ${t.agent}「${t.title}」\n指令：${t.instruction}\n产出：\n${clip(t.out,4000)}`).join('\n\n')+`\n\n只返回 JSON：{"reviews":[{"id":"t1","ok":true,"feedback":"不通过时写具体修改意见"}]}`);
+  const rv=parseJSON(txt).reviews||[];log(`审核完成：${rv.filter(x=>!x.ok).length} 项需返工`);
+  const redo=rv.filter(x=>!x.ok&&x.feedback).map(x=>({t:run.tasks.find(t=>t.id===String(x.id)),f:x.feedback})).filter(x=>x.t);
+  let i=0;const next=async()=>{while(i<redo.length&&!stopped){const {t,f}=redo[i++];t.feedback=f;t.status='rev';const prev=t.out;updCard(t);
+    try{await work(t,`\n你之前的产出：\n${clip(prev,5000)}\n\n主控审核意见：${f}\n请根据意见输出修订后的完整版本。\n`)}catch(e){t.out=prev}t.status='done';updCard(t)}};
+  await Promise.all(Array.from({length:Math.min(cfg.par,redo.length)},next));
+}
+async function synth(){
+  run.final='';
+  run.final=await ask(cfg.master,masterHead()+`\n以下是各成员的成果。请整合成一份完整、连贯、可直接使用的最终交付物：消除重复与矛盾，补齐衔接，保留关键细节（代码、表格、数据要完整保留）。用 Markdown 输出，开头用两三句话总结结论。\n\n`+run.tasks.filter(t=>t.out).map(t=>`## ${t.agent}「${t.title}」\n${clip(t.out)}`).join('\n\n'),txt=>{run.final=txt;if(!$('#finalBody'))renderFinal();else $('#finalBody').innerHTML=md(txt)});
+  renderFinal();
+}
+
+$('#form').addEventListener('submit',async e=>{
+  e.preventDefault();if(busy)return;
+  const goal=$('#goal').value.trim();if(!goal){showErr('请先输入总目标。');$('#goal').focus();return}
+  const need=[cfg.master,...cfg.agents].map(a=>cfg.provs.find(p=>p.id===a.prov)).filter(p=>!p||!p.key);
+  if(need.length){showErr('请先到「模型」页填写 API Key：'+[...new Set(need.map(p=>p?p.name:'未知服务商'))].join('、'));return}
+  showErr('');busy=true;stopped=false;$('#run').disabled=true;$('#stop').disabled=false;
+  run={goal,stage:'plan',t0:Date.now(),usage:{in:0,out:0,calls:0,cost:0,by:{}},log:[]};save('aixt.run',run);log('开始：主控拆解目标');
+  $('#tasks').innerHTML='<div class="empty" style="grid-column:1/-1">主控正在拆解目标…</div>';$('#planBox').innerHTML='';$('#finalBox').innerHTML='';stage('plan');
+  try{
+    await plan();if(stopped)throw 0;renderRun();stage('exec');
+    await execAll();if(stopped)throw 0;
+    if(cfg.review){stage('review');await review();if(stopped)throw 0}
+    stage('final');await synth();if(stopped)throw 0;stage('done');notify('任务完成：'+goal.slice(0,40));
+  }catch(err){stage('stop');if(!(stopped||err===0||err?.name==='AbortError'))showErr('出错了：'+(err?.message||err))}
+  finally{run.t1=Date.now();log(`结束：${STNAME[run.stage]}，共用 ${fmt(used())} tokens`);busy=false;setEngine();topo();$('#run').disabled=false;$('#stop').disabled=true;save('aixt.run',run)}
+});
+$('#stop').onclick=()=>{stopped=true;ctrls.forEach(c=>c.abort())};
+
+
+/* ---- 拓扑图 ---- */
+function topo(){
+  const s=$('#topo');if(!s)return;const W=s.clientWidth||320,H=s.clientHeight||240;if(!W)return;
+  const ag=cfg.agents,n=ag.length,cx=W/2,cy=H/2+6,R=Math.min(W*0.38,H*0.36);
+  const st=name=>{const t=(run?.tasks||[]).filter(x=>x.agent===name);if(t.some(x=>x.status==='run'||x.status==='rev'))return 'on';if(t.some(x=>x.status==='fail'))return 'bad';if(t.length&&t.every(x=>x.status==='done'))return 'ok';return ''};
+  const mOn=busy&&['plan','review','final'].includes(run?.stage);
+  const pts=ag.map((a,i)=>{const ang=-Math.PI/2+i*2*Math.PI/n;return {a,x:cx+R*Math.cos(ang)*1.15,y:cy+R*Math.sin(ang),c:st(a.name)}});
+  const short=s=>s.length>6?s.slice(0,6)+'…':s;
+  s.innerHTML=pts.map(p=>`<path class="edge ${p.c==='on'||mOn?'on':p.c==='ok'?'ok':''}" d="M${cx},${cy} L${p.x},${p.y}"/>`).join('')+
+   (mOn||busy?`<circle class="pulse" cx="${cx}" cy="${cy}" r="20"/>`:'')+
+   `<g class="node m${mOn?' on':''}"><circle cx="${cx}" cy="${cy}" r="22"/><text x="${cx}" y="${cy+4}">${esc(short(cfg.master.name))}</text></g>`+
+   pts.map(p=>`<g class="node ${p.c}"><circle cx="${p.x}" cy="${p.y}" r="14"/><text x="${p.x}" y="${p.y+(p.y<cy-4?-20:30)}">${esc(short(p.a.name))}</text></g>`).join('');
+}
+const topoRO=new ResizeObserver(()=>topo());topoRO.observe($('#topo'));
+renderTeam();renderProvs();show(location.hash.slice(1));
+if(run&&!run.usage)run=null;
+if(run){$('#goal').value=run.goal||'';if(!run.t1)run.t1=Date.now();if(['plan','exec','review','final'].includes(run.stage))run.stage='stop';renderRun()}else stage('idle');
+$('#plat').textContent='v1.2.0 · '+(NATIVE?'安卓 App':/Electron/.test(navigator.userAgent)?'Windows 桌面版':'网页版');
+if(!NATIVE&&!/Electron/.test(navigator.userAgent)&&'serviceWorker' in navigator&&location.protocol==='https:')navigator.serviceWorker.register('sw.js').catch(()=>{});
+}
+</script>
+</body>
+</html>
