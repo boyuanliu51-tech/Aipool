@@ -164,7 +164,7 @@ textarea::placeholder,input::placeholder{color:var(--dim)}
     <a href="#team" data-v="team"><i data-i="users"></i>团队管理</a>
     <a href="#models" data-v="models"><i data-i="key"></i>模型与密钥</a>
   </nav>
-  <div class="foot"><span class="engine"><span>协同引擎</span><em>空闲</em></span><small id="plat">v1.2.0 · 本地存储</small></div>
+  <div class="foot"><span class="engine"><span>协同引擎</span><em>空闲</em></span><small id="plat">v1.3.0 · 本地存储</small></div>
 </aside>
 
 <main>
@@ -251,7 +251,7 @@ textarea::placeholder,input::placeholder{color:var(--dim)}
 <div class="view" id="v-models" hidden>
   <div class="card ph"><span class="tile o"><i data-i="key"></i></span><h1>模型与密钥</h1><button id="addProv"><i data-i="plus"></i>添加 OpenAI 兼容服务</button></div>
   <div class="team" id="provs"></div>
-  <p class="note">密钥只保存在本机浏览器，请求直接发往服务商。「OpenAI 兼容」适用于 OpenAI、DeepSeek、Kimi、通义千问、智谱、OpenRouter 等；若报网络错误，说明该服务不允许浏览器直连，可改用 OpenRouter。</p>
+  <p class="note">密钥只保存在本机浏览器，请求直接发往服务商。已内置 Claude、OpenAI、DeepSeek、Gemini、Grok、Muse；其他如 Kimi、通义千问、智谱、OpenRouter 可用「添加 OpenAI 兼容服务」。模型名可随时改成服务商的最新型号。若报网络错误，说明该服务不允许浏览器直连，可改用 OpenRouter。</p>
 </div>
 </div>
 </main>
@@ -281,12 +281,16 @@ const PRESETS={
 const PROVS=[
  {id:'anthropic',name:'Claude (Anthropic)',type:'anthropic',base:'https://api.anthropic.com',key:'',model:'claude-sonnet-5-5'},
  {id:'openai',name:'OpenAI',type:'openai',base:'https://api.openai.com/v1',key:'',model:''},
- {id:'deepseek',name:'DeepSeek',type:'openai',base:'https://api.deepseek.com/v1',key:'',model:'deepseek-chat'}
+ {id:'deepseek',name:'DeepSeek',type:'openai',base:'https://api.deepseek.com/v1',key:'',model:'deepseek-chat'},
+ {id:'gemini',name:'Google Gemini',type:'openai',base:'https://generativelanguage.googleapis.com/v1beta/openai',key:'',model:'gemini-3.8-flash'},
+ {id:'grok',name:'xAI Grok',type:'openai',base:'https://api.x.ai/v1',key:'',model:'grok-4.7'},
+ {id:'muse',name:'Meta Muse',type:'openai',base:'https://api.meta.ai/v1',key:'',model:'muse-spark-1.3'}
 ];
 const DEF={master:{name:'主控',role:'你是团队的项目经理兼总编：善于拆解目标、按成员专长分工、严格把关质量，并把各方成果整合成一份连贯完整的交付物。',prov:'anthropic',model:'claude-opus-5-5'},agents:PRESETS.dev,par:3,review:true,provs:PROVS};
 const load=k=>{try{return JSON.parse(localStorage.getItem(k))}catch(e){return null}};
 const save=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}};
 let cfg=Object.assign(structuredClone(DEF),load('aixt.cfg')||{});
+PROVS.forEach(d=>{if(!cfg.provs.some(p=>p.id===d.id))cfg.provs.push(structuredClone(d))});
 let run=load('aixt.run');
 let stopped=false,ctrls=new Set(),busy=false;
 const saveCfg=()=>save('aixt.cfg',cfg);
@@ -334,7 +338,7 @@ function renderProvs(){
    <input data-k="key" type="password" value="${esc(p.key)}" placeholder="API Key" aria-label="API Key" autocomplete="off" autocapitalize="off">
    <input data-k="model" value="${esc(p.model)}" placeholder="默认模型名（必填）" aria-label="默认模型" autocapitalize="off">
    <div class="row"><input data-k="pin" value="${esc(p.pin||'')}" inputmode="decimal" placeholder="输入单价/百万" aria-label="输入单价"><input data-k="pout" value="${esc(p.pout||'')}" inputmode="decimal" placeholder="输出单价/百万" aria-label="输出单价"></div>
-   <div class="row"><button class="sm" data-test="${i}">测试连接</button>${/deepseek/.test(p.base)?`<button class="sm" data-bal="${i}">查询余额</button>`:''}${i>=PROVS.length?`<button class="sm" data-pdel="${i}">删除</button>`:''}<span class="hint" data-res="${i}" style="margin:0"></span></div></div>`).join('');
+   <div class="row"><button class="sm" data-test="${i}">测试连接</button>${/deepseek/.test(p.base)?`<button class="sm" data-bal="${i}">查询余额</button>`:''}${PROVS.some(d=>d.id===p.id)?'':`<button class="sm" data-pdel="${i}">删除</button>`}<span class="hint" data-res="${i}" style="margin:0"></span></div></div>`).join('');
 }
 $('#provs').addEventListener('input',e=>{const k=e.target.dataset.k,c=e.target.closest('.prov');if(!k||!c)return;cfg.provs[+c.dataset.i][k]=e.target.value.trim();saveCfg()});
 $('#provs').addEventListener('click',async e=>{
@@ -630,7 +634,7 @@ const topoRO=new ResizeObserver(()=>topo());topoRO.observe($('#topo'));
 renderTeam();renderProvs();show(location.hash.slice(1));
 if(run&&!run.usage)run=null;
 if(run){$('#goal').value=run.goal||'';if(!run.t1)run.t1=Date.now();if(['plan','exec','review','final'].includes(run.stage))run.stage='stop';renderRun()}else stage('idle');
-$('#plat').textContent='v1.2.0 · '+(NATIVE?'安卓 App':/Electron/.test(navigator.userAgent)?'Windows 桌面版':'网页版');
+$('#plat').textContent='v1.3.0 · '+(NATIVE?'安卓 App':/Electron/.test(navigator.userAgent)?'Windows 桌面版':'网页版');
 if(!NATIVE&&!/Electron/.test(navigator.userAgent)&&'serviceWorker' in navigator&&location.protocol==='https:')navigator.serviceWorker.register('sw.js').catch(()=>{});
 }
 </script>
