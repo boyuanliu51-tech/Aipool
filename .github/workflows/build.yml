@@ -90,6 +90,7 @@ jobs:
 
       - name: 构建 EXE
         working-directory: desktop
+        shell: bash
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
         run: npx electron-builder --win --publish never -c.extraMetadata.version=1.2.${{ github.run_number }}
