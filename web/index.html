@@ -164,7 +164,7 @@ textarea::placeholder,input::placeholder{color:var(--dim)}
     <a href="#team" data-v="team"><i data-i="users"></i>团队管理</a>
     <a href="#models" data-v="models"><i data-i="key"></i>模型与密钥</a>
   </nav>
-  <div class="foot"><span class="engine"><span>协同引擎</span><em>空闲</em></span><small id="plat">v1.3.0 · 本地存储</small></div>
+  <div class="foot"><span class="engine"><span>协同引擎</span><em>空闲</em></span><small id="plat">v1.4.0 · 本地存储</small></div>
 </aside>
 
 <main>
@@ -488,7 +488,20 @@ function readout(){
   $('#wPct').textContent=p+'%';$('#wBar').style.width=p+'%';
   $('#wStage').textContent=run?((busy&&!['stop','done'].includes(run.stage))?STNAME[run.stage]+'中':STNAME[run.stage]||'待命'):'待命';
   $('#readout').innerHTML=kv([['任务',t.length?`${c('done')} / ${t.length}`:'—'],['进行中',c('run')+c('rev')],['失败',c('fail')],['Token',fmt(used())+(rem!=null?` · 剩余 ${fmt(rem)}`:'')],['用时',run?dur((run.t1||Date.now())-run.t0):'—']]);
-  monitor();
+  monitor();pushStatus();
+}
+/* ---- 向桌面小仪表盘 / 安卓通知推送进度 ---- */
+let stT=0,stH=0;
+function pushStatus(force){
+  const now=Date.now();
+  if(!force&&now-stT<500){clearTimeout(stH);stH=setTimeout(()=>pushStatus(true),500);return}
+  stT=now;const t=run?.tasks||[],c=k=>t.filter(x=>x.status===k).length;
+  const sn=run?((busy&&!['stop','done'].includes(run.stage))?STNAME[run.stage]+'中':STNAME[run.stage]||'待命'):'待命';
+  const st={busy,stage:run?run.stage:'idle',stageName:sn,pct:pct(),done:c('done'),total:t.length,fail:c('fail'),
+    running:t.filter(x=>x.status==='run'||x.status==='rev').map(x=>x.agent),tokens:used(),budget:cfg.budget||0,
+    t0:run?.t0||0,t1:busy?0:(run?.t1||0),goal:(run?.goal||'').slice(0,60)};
+  try{window.aipoolDesktop&&window.aipoolDesktop.status(st)}catch(_){}
+  try{NATIVE&&NATIVE.status&&NATIVE.status(JSON.stringify(st))}catch(_){}
 }
 function gauge(id,v,txt,unit){const g=$('#'+id);g.querySelector('.fg').style.strokeDashoffset=100-Math.min(100,Math.max(0,v));g.querySelector('.gv').innerHTML=`<span>${txt}<small>${unit||''}</small></span>`}
 function monitor(){
@@ -612,7 +625,7 @@ $('#form').addEventListener('submit',async e=>{
     if(cfg.review){stage('review');await review();if(stopped)throw 0}
     stage('final');await synth();if(stopped)throw 0;stage('done');notify('任务完成：'+goal.slice(0,40));
   }catch(err){stage('stop');if(!(stopped||err===0||err?.name==='AbortError'))showErr('出错了：'+(err?.message||err))}
-  finally{run.t1=Date.now();log(`结束：${STNAME[run.stage]}，共用 ${fmt(used())} tokens`);busy=false;setEngine();topo();$('#run').disabled=false;$('#stop').disabled=true;save('aixt.run',run)}
+  finally{run.t1=Date.now();log(`结束：${STNAME[run.stage]}，共用 ${fmt(used())} tokens`);busy=false;setEngine();topo();pushStatus(true);$('#run').disabled=false;$('#stop').disabled=true;save('aixt.run',run)}
 });
 $('#stop').onclick=()=>{stopped=true;ctrls.forEach(c=>c.abort())};
 
@@ -634,7 +647,7 @@ const topoRO=new ResizeObserver(()=>topo());topoRO.observe($('#topo'));
 renderTeam();renderProvs();show(location.hash.slice(1));
 if(run&&!run.usage)run=null;
 if(run){$('#goal').value=run.goal||'';if(!run.t1)run.t1=Date.now();if(['plan','exec','review','final'].includes(run.stage))run.stage='stop';renderRun()}else stage('idle');
-$('#plat').textContent='v1.3.0 · '+(NATIVE?'安卓 App':/Electron/.test(navigator.userAgent)?'Windows 桌面版':'网页版');
+$('#plat').textContent='v1.4.0 · '+(NATIVE?'安卓 App':/Electron/.test(navigator.userAgent)?'Windows 桌面版':'网页版');
 if(!NATIVE&&!/Electron/.test(navigator.userAgent)&&'serviceWorker' in navigator&&location.protocol==='https:')navigator.serviceWorker.register('sw.js').catch(()=>{});
 }
 </script>
