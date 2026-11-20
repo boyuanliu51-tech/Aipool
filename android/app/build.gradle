@@ -1,0 +1,49 @@
+plugins {
+    id 'com.android.application'
+}
+
+def runNo = (System.getenv('GITHUB_RUN_NUMBER') ?: '1') as int
+
+android {
+    namespace 'com.aipool.app'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId 'com.aipool.app'
+        minSdk 24
+        targetSdk 34
+        versionCode runNo
+        versionName "1.2.${runNo}"
+    }
+
+    signingConfigs {
+        release {
+            // 证书由打包流程生成或从仓库 Secret 还原，不存放在仓库里
+            storeFile file('release.jks')
+            storePassword System.getenv('KEYSTORE_PASSWORD') ?: 'aipool-temp'
+            keyAlias System.getenv('KEY_ALIAS') ?: 'aipool'
+            keyPassword System.getenv('KEY_PASSWORD') ?: 'aipool-temp'
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            signingConfig signingConfigs.release
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    lint {
+        abortOnError false
+        checkReleaseBuilds false
+    }
+}
+
+dependencies {
+    implementation 'androidx.webkit:webkit:1.11.0'
+}

@@ -7,3 +7,4 @@ android/app/build/
 android/app/src/main/assets/
 android/local.properties
 *.log
+android/app/release.jks

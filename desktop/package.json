@@ -1,0 +1,40 @@
+{
+  "name": "aipool",
+  "version": "1.2.0",
+  "description": "多 AI 协同台",
+  "main": "main.js",
+  "author": "AI-POOL",
+  "license": "MIT",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --win --publish never"
+  },
+  "devDependencies": {
+    "electron": "^33.2.0",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "com.aipool.app",
+    "productName": "AIPool",
+    "directories": { "output": "dist" },
+    "files": ["main.js", "web/**/*"],
+    "win": {
+      "icon": "web/icon-512.png",
+      "target": [
+        { "target": "nsis", "arch": ["x64"] },
+        { "target": "portable", "arch": ["x64"] }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "AI协同台",
+      "artifactName": "AIPool-Setup-${version}.${ext}"
+    },
+    "portable": {
+      "artifactName": "AIPool-Portable-${version}.${ext}"
+    }
+  }
+}
