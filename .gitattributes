@@ -1,0 +1,3 @@
+# base64 文本在 Windows 上也保持 LF，否则 base64 -d 会报错
+*.b64 text eol=lf
+*.sh text eol=lf
