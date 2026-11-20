@@ -1,0 +1,120 @@
+name: 打包安卓和 Windows
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  android:
+    name: 安卓 APK
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 还原二进制文件
+        shell: bash
+        run: |
+          find . -name '*.b64' | while read f; do base64 -d "$f" > "${f%.b64}"; done
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+
+      - name: 复制网页资源和图标
+        run: |
+          mkdir -p android/app/src/main/assets/www
+          cp -r web/* android/app/src/main/assets/www/
+          rm -f android/app/src/main/assets/www/*.b64
+          for d in mdpi hdpi xhdpi xxhdpi xxxhdpi; do mkdir -p android/app/src/main/res/mipmap-$d; cp web/icon-192.png android/app/src/main/res/mipmap-$d/ic_launcher.png; done
+
+      - name: 准备签名证书
+        env:
+          KEYSTORE_B64: ${{ secrets.KEYSTORE_B64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+        run: |
+          if [ -n "$KEYSTORE_B64" ]; then
+            echo "$KEYSTORE_B64" | base64 -d > android/app/release.jks
+            echo "使用仓库 Secret 里的固定证书"
+          else
+            keytool -genkeypair -keystore android/app/release.jks -alias aipool -keyalg RSA -keysize 2048 -validity 10000 \
+              -storepass "${KEYSTORE_PASSWORD:-aipool-temp}" -keypass "${KEYSTORE_PASSWORD:-aipool-temp}" -dname "CN=AIPool" -noprompt
+            echo "::warning::未设置 KEYSTORE_B64，本次使用临时证书。新版本需要先卸载旧版才能安装。"
+          fi
+
+      - name: 构建 APK
+        working-directory: android
+        env:
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD || 'aipool-temp' }}
+          KEY_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD || 'aipool-temp' }}
+        run: gradle assembleRelease --no-daemon --stacktrace
+
+      - name: 整理文件
+        run: cp android/app/build/outputs/apk/release/app-release.apk "AIPool-Android-1.2.${{ github.run_number }}.apk"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android
+          path: AIPool-Android-*.apk
+
+  windows:
+    name: Windows 安装包
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 还原二进制文件
+        shell: bash
+        run: |
+          find . -name '*.b64' | while read f; do base64 -d "$f" > "${f%.b64}"; done
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: 复制网页资源
+        shell: bash
+        run: cp -r web desktop/web
+
+      - name: 安装依赖
+        working-directory: desktop
+        run: npm install --no-audit --no-fund
+
+      - name: 构建 EXE
+        working-directory: desktop
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+        run: npx electron-builder --win --publish never -c.extraMetadata.version=1.2.${{ github.run_number }}
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows
+          path: desktop/dist/*.exe
+
+  release:
+    name: 发布到 Releases
+    needs: [android, windows]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: out
+          merge-multiple: true
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v1.2.${{ github.run_number }}
+          name: AI协同台 v1.2.${{ github.run_number }}
+          body: |
+            - **AIPool-Android-*.apk**：安卓安装包，手机下载后直接安装
+            - **AIPool-Setup-*.exe**：Windows 安装程序
+            - **AIPool-Portable-*.exe**：Windows 免安装版，双击即用
+          files: out/*
